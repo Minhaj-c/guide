@@ -1,0 +1,11 @@
+# Node.js dependencies
+node_modules/
+
+# MongoDB data (if applicable)
+*.db
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
