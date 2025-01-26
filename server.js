@@ -2,7 +2,8 @@ import express from "express";
 import path from "path";
 import session from "express-session";
 import mongoose from "mongoose";
-import User from "./models/userModel.js"; // Import the User model
+import User from "./models/userModel.js"; 
+import Chat from './models/chatModel.js'; 
 
 const app = express();
 const port = 3000;
@@ -119,21 +120,65 @@ app.get("/logout", (req, res) => {
 //going to home page
 app.get("/home", (req, res) => {
   if (req.session.user) {
-    res.render("home", { user: req.session.user, messages: [] });
+    res.render("home", { user: req.session.user }); // Render home.ejs without chat messages
   } else {
     res.redirect("/login");
   }
 });
 
-let chatMessages = [];
+app.get("/chat", async (req, res) => {
+  if (req.session.user) {
+    try {
+      // Find or create the user's chat history
+      let chat = await Chat.findOne({ userId: req.session.user._id });
 
-app.post("/home/chat", (req, res) => {
+      if (!chat) {
+        // If no chat history exists, create a new one
+        chat = new Chat({
+          userId: req.session.user._id,
+          messages: [], // Start with an empty message array
+        });
+        await chat.save();
+      }
+
+      // Render the chat page with the user's chat messages
+      const messages = chat.messages.map((msg) => `${req.session.user.username}: ${msg.content}`);
+      res.render("chat", { user: req.session.user, messages });
+    } catch (err) {
+      console.error("Error loading chat messages:", err);
+      res.render("chat", { user: req.session.user, messages: [] }); // Render empty chatbox on error
+    }
+  } else {
+    res.redirect("/login");
+  }
+});
+
+
+app.post("/chat", async (req, res) => {
   if (req.session.user) {
     const { message } = req.body;
 
-    chatMessages.push(`${req.session.user.username}: ${message}`);
+    try {
+      // Find the user's chat history or create a new one
+      let chat = await Chat.findOne({ userId: req.session.user._id });
 
-    res.render("home", { user: req.session.user, messages: chatMessages });
+      if (!chat) {
+        chat = new Chat({
+          userId: req.session.user._id,
+          messages: [],
+        });
+      }
+
+      // Add the new message to the chat
+      chat.messages.push({ content: message });
+      await chat.save();
+
+      // Redirect back to the chat page
+      res.redirect("/chat");
+    } catch (err) {
+      console.error("Error saving chat message:", err);
+      res.send("Error processing your message. Please try again.");
+    }
   } else {
     res.redirect("/login");
   }
