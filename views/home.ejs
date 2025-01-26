@@ -5,29 +5,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Home</title>
   <style>
-    .chat-button {
-      display: inline-block;
+    .home-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      border-radius: 10px;
+      background-color: #f9f9f9;
+    }
+    .button {
       padding: 10px 20px;
-      font-size: 16px;
-      color: white;
       background-color: #007bff;
+      color: white;
       border: none;
       border-radius: 5px;
-      text-decoration: none;
       cursor: pointer;
-    }
-    .chat-button:hover {
-      background-color: #0056b3;
+      font-size: 16px;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Welcome, <%= user.username %>!</h1>
-    <p>We’re here to help you with your career journey.</p>
+  <div class="home-container">
+    <h2>Welcome, <%= user.username %>!</h2>
+    <p>Explore courses, jobs, and more!</p>
 
-    <!-- "Chat with Us" Button -->
-    <a href="/chat" class="chat-button">Chat with Us</a>
+    <!-- Chat Button -->
+    <form action="/chat" method="GET">
+      <button type="submit" class="button">Chat with Us</button>
+    </form>
   </div>
 </body>
 </html>

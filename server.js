@@ -1,4 +1,6 @@
 import express from "express";
+import http from "http"; // Required to create an HTTP server for Socket.IO
+import { Server } from "socket.io"; // Import Socket.IO
 import path from "path";
 import session from "express-session";
 import mongoose from "mongoose";
@@ -8,6 +10,11 @@ import Chat from "./models/chatModel.js";
 const app = express();
 const port = 3000;
 
+// Create an HTTP server to work with Socket.IO
+const server = http.createServer(app);
+const io = new Server(server);
+
+// MongoDB connection setup
 mongoose
   .connect("mongodb://localhost:27017/career-recommender")
   .then(() => {
@@ -60,11 +67,19 @@ app.post("/login", async (req, res) => {
 
   if (user && (await user.comparePassword(password))) {
     req.session.user = user;
-    res.redirect("/home");
+    res.redirect("/home"); // Redirect to home page after login
   } else {
     res.send("Invalid credentials!");
   }
 });
+app.get("/home", (req, res) => {
+  if (req.session.user) {
+    res.render("home", { user: req.session.user });
+  } else {
+    res.redirect("/login");
+  }
+});
+
 
 app.get("/dashboard", (req, res) => {
   if (req.session.user) {
@@ -114,18 +129,9 @@ app.get("/logout", (req, res) => {
   });
 });
 
-app.get("/home", (req, res) => {
-  if (req.session.user) {
-    res.render("home", { user: req.session.user });
-  } else {
-    res.redirect("/login");
-  }
-});
-
 app.get("/chat", async (req, res) => {
   if (req.session.user) {
     try {
-      // Find or create the user's chat history
       let chat = await Chat.findOne({ userId: req.session.user._id });
 
       if (!chat) {
@@ -137,9 +143,6 @@ app.get("/chat", async (req, res) => {
         await chat.save();
       }
 
-      console.log("Chat Messages:", chat.messages); // Debugging log to confirm message data
-
-      // Render the chat page
       res.render("chat", {
         user: req.session.user,
         messages: chat.messages,
@@ -154,9 +157,25 @@ app.get("/chat", async (req, res) => {
 });
 
 
-app.post("/chat", async (req, res) => {
-  if (req.session.user) {
-    const { message } = req.body;
+// Handle Socket.IO connections
+io.on("connection", (socket) => {
+  console.log("A user connected");
+
+  // Listen for new chat messages
+  socket.on("chat message", async ({ userId, username, message }) => {
+    // Save message to the database
+    let chat = await Chat.findOne({ userId });
+
+    if (!chat) {
+      chat = new Chat({
+        userId,
+        username,
+        messages: [],
+      });
+    }
+
+    // Add user's message and predefined bot reply
+    chat.messages.push({ content: message, sender: "user" });
 
     const predefinedReplies = {
       hi: "Hello! How can I assist you today?",
@@ -164,39 +183,24 @@ app.post("/chat", async (req, res) => {
       hey: "Hey! What can I do for you?",
     };
 
-    const userMessage = message.trim().toLowerCase();
-    const botReply = predefinedReplies[userMessage] || "I'm here to help! Ask me anything.";
+    const botReply =
+      predefinedReplies[message.toLowerCase()] ||
+      "I'm here to help! Ask me anything.";
+    chat.messages.push({ content: botReply, sender: "bot" });
 
-    try {
-      let chat = await Chat.findOne({ userId: req.session.user._id });
+    await chat.save();
 
-      if (!chat) {
-        chat = new Chat({
-          userId: req.session.user._id,
-          username: req.session.user.username,
-          messages: [],
-        });
-        await chat.save();
-      }
+    // Emit both the user's message and the bot's reply to all clients
+    io.emit("chat message", { username, message });
+    io.emit("chat message", { username: "Bot", message: botReply });
+  });
 
-      // Add user message and bot reply
-      chat.messages.push({ content: message }); // User's message
-      chat.messages.push({ content: botReply }); // Bot's reply
-      await chat.save();
-
-      console.log("Chat Messages:", chat.messages); // Debugging log to confirm messages
-
-      res.redirect("/chat");
-    } catch (err) {
-      console.error("Error saving chat message:", err);
-      res.send("Error processing your message. Please try again.");
-    }
-  } else {
-    res.redirect("/login");
-  }
+  socket.on("disconnect", () => {
+    //console.log("A user disconnected");
+  });
 });
 
-
-app.listen(port, () => {
+// Start the server
+server.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
 });
