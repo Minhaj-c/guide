@@ -49,51 +49,51 @@
       cursor: pointer;
     }
   </style>
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const socket = io();
-      const chatBox = document.getElementById("chat-box");
-      const form = document.getElementById("chat-form");
-      const input = document.getElementById("message");
-
-      // Listen for incoming messages
-      socket.on("chat message", ({ username, message }) => {
-        const div = document.createElement("div");
-        div.classList.add("chat-message");
-        div.innerHTML = `<strong>${username}:</strong> ${message}`;
-        chatBox.appendChild(div);
-        chatBox.scrollTop = chatBox.scrollHeight; // Scroll to the latest message
-      });
-
-      // Send message
-      form.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const message = input.value.trim();
-        if (message) {
-          socket.emit("chat message", {
-            userId: "<%= user._id %>",
-            username: "<%= user.username %>",
-            message,
-          });
-          input.value = "";
-        }
-      });
-    });
-  </script>
 </head>
 <body>
   <div class="chat-container">
     <h2>Chat with Us</h2>
 
     <!-- Chat Box -->
-    <div class="chat-box" id="chat-box"></div>
+    <div class="chat-box" id="chat-box">
+      <% if (messages.length === 0) { %>
+        <div class="chat-message">No messages yet. Start the conversation!</div>
+      <% } else { %>
+        <% messages.forEach((message, index) => { %>
+          <div class="chat-message">
+            <% if (message.sender === 'user') { %> <!-- User Message -->
+              <p class="user-message"><%= user.username %>: <%= message.content %></p>
+            <% } else { %> <!-- Bot Reply -->
+              <p class="bot-message">Bot: <%= message.content %></p>
+            <% } %>
+          </div>
+        <% }); %>
+      <% } %>
+    </div>
 
     <!-- Chat Input -->
-    <form id="chat-form" class="chat-input">
-      <input type="text" id="message" placeholder="Type your message..." required>
+    <form id="chat-form" action="/chat" method="POST" class="chat-input">
+      <input type="text" name="message" id="message" placeholder="Type your message..." required>
       <button type="submit">Send</button>
     </form>
   </div>
+
+  <!-- Socket.io Script -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    // Listen for incoming chat messages
+    socket.on("chat message", (data) => {
+      const messageContainer = document.getElementById("chat-box");
+      const newMessage = document.createElement("div");
+      newMessage.classList.add("chat-message");
+      newMessage.innerHTML = `
+        <p class="${data.username === 'Bot' ? 'bot-message' : 'user-message'}">${data.username}: ${data.message}</p>
+      `;
+      messageContainer.appendChild(newMessage);
+      messageContainer.scrollTop = messageContainer.scrollHeight; // Auto-scroll to the latest message
+    });
+  </script>
 </body>
 </html>
