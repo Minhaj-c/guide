@@ -2,12 +2,11 @@ import express from "express";
 import path from "path";
 import session from "express-session";
 import mongoose from "mongoose";
-import User from "./models/userModel.js"; 
-import Chat from './models/chatModel.js'; 
+import User from "./models/userModel.js";
+import Chat from "./models/chatModel.js";
 
 const app = express();
 const port = 3000;
-
 
 mongoose
   .connect("mongodb://localhost:27017/career-recommender")
@@ -18,9 +17,7 @@ mongoose
     console.error("Error connecting to MongoDB:", error);
   });
 
-
 app.set("view engine", "ejs");
-
 
 app.use(express.static(path.join(path.resolve(), "public")));
 
@@ -117,10 +114,9 @@ app.get("/logout", (req, res) => {
   });
 });
 
-
 app.get("/home", (req, res) => {
   if (req.session.user) {
-    res.render("home", { user: req.session.user }); 
+    res.render("home", { user: req.session.user });
   } else {
     res.redirect("/login");
   }
@@ -129,24 +125,28 @@ app.get("/home", (req, res) => {
 app.get("/chat", async (req, res) => {
   if (req.session.user) {
     try {
-      
+      // Find or create the user's chat history
       let chat = await Chat.findOne({ userId: req.session.user._id });
 
       if (!chat) {
-        
         chat = new Chat({
           userId: req.session.user._id,
-          messages: [], 
+          username: req.session.user.username,
+          messages: [],
         });
         await chat.save();
       }
 
-      
-      const messages = chat.messages.map((msg) => `${req.session.user.username}: ${msg.content}`);
-      res.render("chat", { user: req.session.user, messages });
+      console.log("Chat Messages:", chat.messages); // Debugging log to confirm message data
+
+      // Render the chat page
+      res.render("chat", {
+        user: req.session.user,
+        messages: chat.messages,
+      });
     } catch (err) {
       console.error("Error loading chat messages:", err);
-      res.render("chat", { user: req.session.user, messages: [] }); 
+      res.render("chat", { user: req.session.user, messages: [] });
     }
   } else {
     res.redirect("/login");
@@ -158,22 +158,34 @@ app.post("/chat", async (req, res) => {
   if (req.session.user) {
     const { message } = req.body;
 
+    const predefinedReplies = {
+      hi: "Hello! How can I assist you today?",
+      hello: "Hi there! How can I help?",
+      hey: "Hey! What can I do for you?",
+    };
+
+    const userMessage = message.trim().toLowerCase();
+    const botReply = predefinedReplies[userMessage] || "I'm here to help! Ask me anything.";
+
     try {
-      
       let chat = await Chat.findOne({ userId: req.session.user._id });
 
       if (!chat) {
         chat = new Chat({
           userId: req.session.user._id,
+          username: req.session.user.username,
           messages: [],
         });
+        await chat.save();
       }
 
-      
-      chat.messages.push({ content: message });
+      // Add user message and bot reply
+      chat.messages.push({ content: message }); // User's message
+      chat.messages.push({ content: botReply }); // Bot's reply
       await chat.save();
 
-      
+      console.log("Chat Messages:", chat.messages); // Debugging log to confirm messages
+
       res.redirect("/chat");
     } catch (err) {
       console.error("Error saving chat message:", err);
@@ -183,6 +195,7 @@ app.post("/chat", async (req, res) => {
     res.redirect("/login");
   }
 });
+
 
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);

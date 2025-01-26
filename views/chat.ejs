@@ -24,6 +24,12 @@
     .chat-message {
       margin-bottom: 10px;
     }
+    .user-message {
+      font-weight: bold;
+    }
+    .bot-message {
+      color: gray;
+    }
     .chat-input {
       display: flex;
       gap: 10px;
@@ -53,8 +59,14 @@
       <% if (messages.length === 0) { %>
         <div class="chat-message">No messages yet. Start the conversation!</div>
       <% } else { %>
-        <% messages.forEach(message => { %>
-          <div class="chat-message"><%= message %></div>
+        <% messages.forEach((message, index) => { %>
+          <div class="chat-message">
+            <% if (index % 2 === 0) { %> <!-- User Message -->
+              <p class="user-message"><%= user.username %>: <%= message.content %></p>
+            <% } else { %> <!-- Bot Reply -->
+              <p class="bot-message">Bot: <%= message.content %></p>
+            <% } %>
+          </div>
         <% }); %>
       <% } %>
     </div>
