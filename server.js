@@ -8,7 +8,7 @@ import Chat from './models/chatModel.js';
 const app = express();
 const port = 3000;
 
-// MongoDB connection setup
+
 mongoose
   .connect("mongodb://localhost:27017/career-recommender")
   .then(() => {
@@ -18,10 +18,10 @@ mongoose
     console.error("Error connecting to MongoDB:", error);
   });
 
-// Set the view engine to EJS
+
 app.set("view engine", "ejs");
 
-// Serve static files from the 'public' folder
+
 app.use(express.static(path.join(path.resolve(), "public")));
 
 app.use(express.urlencoded({ extended: true }));
@@ -117,10 +117,10 @@ app.get("/logout", (req, res) => {
   });
 });
 
-//going to home page
+
 app.get("/home", (req, res) => {
   if (req.session.user) {
-    res.render("home", { user: req.session.user }); // Render home.ejs without chat messages
+    res.render("home", { user: req.session.user }); 
   } else {
     res.redirect("/login");
   }
@@ -129,24 +129,24 @@ app.get("/home", (req, res) => {
 app.get("/chat", async (req, res) => {
   if (req.session.user) {
     try {
-      // Find or create the user's chat history
+      
       let chat = await Chat.findOne({ userId: req.session.user._id });
 
       if (!chat) {
-        // If no chat history exists, create a new one
+        
         chat = new Chat({
           userId: req.session.user._id,
-          messages: [], // Start with an empty message array
+          messages: [], 
         });
         await chat.save();
       }
 
-      // Render the chat page with the user's chat messages
+      
       const messages = chat.messages.map((msg) => `${req.session.user.username}: ${msg.content}`);
       res.render("chat", { user: req.session.user, messages });
     } catch (err) {
       console.error("Error loading chat messages:", err);
-      res.render("chat", { user: req.session.user, messages: [] }); // Render empty chatbox on error
+      res.render("chat", { user: req.session.user, messages: [] }); 
     }
   } else {
     res.redirect("/login");
@@ -159,7 +159,7 @@ app.post("/chat", async (req, res) => {
     const { message } = req.body;
 
     try {
-      // Find the user's chat history or create a new one
+      
       let chat = await Chat.findOne({ userId: req.session.user._id });
 
       if (!chat) {
@@ -169,11 +169,11 @@ app.post("/chat", async (req, res) => {
         });
       }
 
-      // Add the new message to the chat
+      
       chat.messages.push({ content: message });
       await chat.save();
 
-      // Redirect back to the chat page
+      
       res.redirect("/chat");
     } catch (err) {
       console.error("Error saving chat message:", err);
