@@ -23,10 +23,8 @@ app.set("view engine", "ejs");
 // Serve static files from the 'public' folder
 app.use(express.static(path.join(path.resolve(), "public")));
 
-
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-
 
 app.use(
   session({
@@ -36,54 +34,45 @@ app.use(
   })
 );
 
-
 app.get("/", (req, res) => {
   res.render("index");
 });
 
-
 app.post("/signup", async (req, res) => {
   const { username, email, password, qualification } = req.body;
 
-  
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     return res.send("Email already in use!");
   }
 
- 
   const newUser = new User({ username, email, password, qualification });
   await newUser.save();
 
-  
   res.redirect("/login");
 });
-
 
 app.get("/login", (req, res) => {
   res.render("login");
 });
 
-
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
-  const user = await User.findOne({ email }); 
+  const user = await User.findOne({ email });
 
   if (user && (await user.comparePassword(password))) {
-   
     req.session.user = user;
-    res.redirect("/dashboard"); 
+    res.redirect("/home");
   } else {
     res.send("Invalid credentials!");
   }
 });
 
-
 app.get("/dashboard", (req, res) => {
   if (req.session.user) {
     res.render("dashboard", { user: req.session.user });
   } else {
-    res.redirect("/login"); 
+    res.redirect("/login");
   }
 });
 
@@ -100,14 +89,12 @@ app.post("/edit-profile", async (req, res) => {
 
   if (req.session.user) {
     try {
-      
       const updatedUser = await User.findByIdAndUpdate(
         req.session.user._id,
         { username, email, qualification },
         { new: true }
       );
 
-      
       req.session.user = updatedUser;
 
       res.redirect("/dashboard");
@@ -120,7 +107,6 @@ app.post("/edit-profile", async (req, res) => {
   }
 });
 
-
 app.get("/logout", (req, res) => {
   req.session.destroy((err) => {
     if (err) {
@@ -130,7 +116,29 @@ app.get("/logout", (req, res) => {
   });
 });
 
-// Start the server
+//going to home page
+app.get("/home", (req, res) => {
+  if (req.session.user) {
+    res.render("home", { user: req.session.user, messages: [] });
+  } else {
+    res.redirect("/login");
+  }
+});
+
+let chatMessages = [];
+
+app.post("/home/chat", (req, res) => {
+  if (req.session.user) {
+    const { message } = req.body;
+
+    chatMessages.push(`${req.session.user.username}: ${message}`);
+
+    res.render("home", { user: req.session.user, messages: chatMessages });
+  } else {
+    res.redirect("/login");
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
 });

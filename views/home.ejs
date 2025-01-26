@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home</title>
+  <style>
+    /* Basic chat styling */
+    .chat-container {
+      max-width: 600px;
+      margin: 0 auto;
+      border: 1px solid #ccc;
+      padding: 20px;
+      border-radius: 10px;
+      background-color: #f9f9f9;
+    }
+    .chat-box {
+      height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      padding: 10px;
+      background-color: #fff;
+      margin-bottom: 10px;
+    }
+    .chat-message {
+      margin-bottom: 10px;
+    }
+    .chat-input {
+      display: flex;
+      gap: 10px;
+    }
+    .chat-input input {
+      flex-grow: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .chat-input button {
+      padding: 10px 15px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Welcome, <%= user.username %>!</h1>
+
+    <div class="chat-container">
+      <h2>Tell us about your skills</h2>
+      
+      <!-- Chat Box -->
+      <div class="chat-box" id="chat-box">
+        <% messages.forEach(message => { %>
+          <div class="chat-message"><%= message %></div>
+        <% }); %>
+      </div>
+
+      <!-- Chat Input -->
+      <form id="chat-form" action="/home/chat" method="POST" class="chat-input">
+        <input type="text" name="message" id="message" placeholder="Type your message..." required>
+        <button type="submit">Send</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
