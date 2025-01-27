@@ -113,7 +113,7 @@ app.post("/chat", async (req, res) => {
   if (req.session.user) {
     const { message } = req.body;
 
-    // Predefined replies for greetings like "hi", "hello", etc.
+    // Predefined replies for basic greetings
     const predefinedReplies = {
       hi: "Hello! How can I assist you today?",
       hello: "Hi there! How can I help?",
@@ -123,39 +123,30 @@ app.post("/chat", async (req, res) => {
 
     const userMessage = message.trim().toLowerCase();
     let botReply = predefinedReplies[userMessage] || "I'm here to help! Ask me anything.";
-
-    let roadmap = ""; // Initialize roadmap variable here
-    let matched = false; // Flag to track if a match is found
+    let roadmap = null;
+    let matched = false;
 
     try {
-      // If the message is not a greeting, proceed with skill matching
-      if (!predefinedReplies[userMessage]) {
-        // Split the user input into individual skills and normalize them (e.g., lowercase, trim)
-        const userSkills = userMessage.split(",").map(skill => skill.trim().toLowerCase());
+      // Check if the user message matches skills
+      const userSkills = userMessage.split(",").map((skill) => skill.trim().toLowerCase());
 
-        // Default bot reply if no matching skills are found
-        botReply = "I couldn't find matching skills. Try typing more specific skills like 'Python, JavaScript'.";
+      for (const skillSet in predefinedSkills) {
+        const normalizedSkills = predefinedSkills[skillSet].skills.map((skill) => skill.toLowerCase());
 
-        // Loop through predefined skills and find a match
-        for (const skillSet in predefinedSkills) {
-          // Normalize the predefined skills and check if any match
-          const normalizedSkills = predefinedSkills[skillSet].skills.map(skill => skill.toLowerCase());
+        const match = userSkills.some((skill) => normalizedSkills.includes(skill));
 
-          const match = userSkills.some(skill => normalizedSkills.includes(skill));
-
-          if (match) {
-            matched = true;
-            roadmap = `Based on your skills in ${skillSet}, here's your roadmap:\n`; // Now, assign the roadmap
-            predefinedSkills[skillSet].roadmap.forEach((step) => {
-              roadmap += `- ${step}\n`; // Add each step of the roadmap
-            });
-            botReply = "Here's the roadmap for your skills:\n" + roadmap;
-            break;
-          }
+        if (match) {
+          matched = true;
+          roadmap = {
+            title: `Roadmap for ${skillSet}`,
+            steps: predefinedSkills[skillSet].roadmap.map((step) => ({ step, completed: false })),
+          };
+          botReply = `Great! Here's a roadmap for ${skillSet}.`;
+          break;
         }
       }
 
-      // Find or create the user's chat history
+      // Find or create chat history
       let chat = await Chat.findOne({ userId: req.session.user._id });
 
       if (!chat) {
@@ -167,23 +158,22 @@ app.post("/chat", async (req, res) => {
         await chat.save();
       }
 
-      // Save both the user's message and the bot's reply
+      // Save messages
       chat.messages.push({ content: message, sender: "user" });
       chat.messages.push({ content: botReply, sender: "bot" });
       await chat.save();
 
-      // Emit both the user's message and the bot's response to all clients
       io.emit("chat message", { username: req.session.user.username, message });
       io.emit("chat message", { username: "Bot", message: botReply });
 
-      // Redirect to roadmap if skills matched, otherwise stay in chat
+      // Redirect based on match
       if (matched) {
-        res.render("roadmap", { roadmap }); // Render roadmap if matched
+        res.render("roadmap", { roadmap }); // Pass roadmap to the template
       } else {
         res.render("chat", {
           user: req.session.user,
           messages: chat.messages,
-        }); // Stay in the chat if no skills matched
+        });
       }
     } catch (err) {
       console.error("Error saving chat message:", err);
@@ -195,14 +185,36 @@ app.post("/chat", async (req, res) => {
 });
 
 
-// Serve roadmap page
-app.get("/roadmap", (req, res) => {
+
+app.post("/update-roadmap", (req, res) => {
   if (req.session.user) {
-    res.render("roadmap", { roadmap: req.session.roadmap });
+    const { index, completed } = req.body;
+
+    // Logic to update the roadmap in the database
+    // Example:
+    // Assuming req.session.user.roadmap.steps exists and contains steps for this user
+    if (req.session.user.roadmap && req.session.user.roadmap.steps) {
+      req.session.user.roadmap.steps[index].completed = completed;
+
+      // Save the updated user data to the database (if applicable)
+      User.findByIdAndUpdate(req.session.user._id, {
+        roadmap: req.session.user.roadmap,
+      })
+        .then(() => res.status(200).send("Step updated successfully."))
+        .catch((err) => {
+          console.error("Error updating roadmap:", err);
+          res.status(500).send("Failed to update roadmap.");
+        });
+    } else {
+      res.status(400).send("Roadmap not found.");
+    }
   } else {
-    res.redirect("/login");
+    res.status(403).send("Unauthorized.");
   }
 });
+
+// Start the server
+
 
 // Start the server
 server.listen(port, () => {

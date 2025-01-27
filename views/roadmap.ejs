@@ -7,25 +7,59 @@
   <style>
     body {
       font-family: Arial, sans-serif;
+      margin: 20px;
+      padding: 0;
+      line-height: 1.6;
+      background-color: #f9f9f9;
     }
     h2 {
       color: #333;
+      text-align: center;
     }
-    pre {
-      background-color: #f4f4f4;
+    .roadmap-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       padding: 20px;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      padding: 10px 15px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
       border-radius: 5px;
-      white-space: pre-wrap; /* Allow wrapping long lines */
-      word-wrap: break-word;
+      background-color: #f4f4f4;
+      cursor: pointer;
+      transition: background-color 0.2s ease-in-out;
+    }
+    li.completed {
+      text-decoration: line-through;
+      color: gray;
+      background-color: #e0e0e0;
+    }
+    li:hover {
+      background-color: #f0f8ff;
+    }
+    .message {
+      font-size: 1.2em;
+      text-align: center;
+      margin: 20px 0;
     }
     a {
-      display: inline-block;
-      margin-top: 20px;
-      padding: 10px 15px;
+      display: block;
+      margin: 20px auto;
+      padding: 10px 20px;
       background-color: #007bff;
       color: white;
       text-decoration: none;
       border-radius: 5px;
+      width: fit-content;
+      text-align: center;
     }
     a:hover {
       background-color: #0056b3;
@@ -33,15 +67,53 @@
   </style>
 </head>
 <body>
-  <h2>Your Career Roadmap</h2>
+  <div class="roadmap-container">
+    <h2>Your Career Roadmap</h2>
   
-  <!-- Dynamically display the roadmap based on the 'roadmap' variable passed from the server -->
-  <% if (roadmap) { %>
-    <pre><%= roadmap %></pre>
-  <% } else { %>
-    <p>No matching skills found. Please try again with specific skills.</p>
-  <% } %>
+    <% if (roadmap && roadmap.steps && roadmap.steps.length > 0) { %>
+      <ul id="roadmap-steps">
+        <% roadmap.steps.forEach((step, index) => { %>
+          <li data-index="<%= index %>" class="<%= step.completed ? 'completed' : '' %>">
+            <%= step.step %>
+          </li>
+        <% }); %>
+      </ul>
+    <% } else { %>
+      <p class="message">No matching skills found. Please try again with specific skills.</p>
+    <% } %>
+  
+    <a href="/chat">Go Back to Chat</a>
+  </div>
+  
 
-  <a href="/chat">Go Back to Chat</a>
+  <script>
+    // Make roadmap steps interactive for marking as completed
+    const stepsList = document.getElementById('roadmap-steps');
+
+    if (stepsList) {
+      stepsList.addEventListener('click', (event) => {
+        const target = event.target;
+
+        if (target.tagName === 'LI') {
+          // Toggle the 'completed' class
+          target.classList.toggle('completed');
+
+          // Optionally, you can send an AJAX request to update the roadmap progress in the backend
+          const index = target.getAttribute('data-index');
+          const completed = target.classList.contains('completed');
+
+          fetch('/update-roadmap', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ index, completed }),
+          }).then(response => {
+            if (!response.ok) {
+              console.error('Failed to update roadmap step.');
+            }
+          }).catch(err => console.error('Error:', err));
+        }
+      });
+    }
+  </script>
 </body>
 </html>
