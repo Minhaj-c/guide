@@ -1,12 +1,13 @@
 import express from "express";
-import http from "http"; // Required to create an HTTP server for Socket.IO
-import { Server } from "socket.io"; // Import Socket.IO
+import http from "http";
+import { Server } from "socket.io";
 import path from "path";
 import session from "express-session";
 import mongoose from "mongoose";
+import multer from "multer"; // For handling file uploads
 import User from "./models/userModel.js";
 import Chat from "./models/chatModel.js";
-import { predefinedSkills } from "./models/skillsData.js"; // Import predefined skills and roadmaps
+import { predefinedSkills } from "./models/skillsData.js";
 
 const app = express();
 const port = 3000;
@@ -25,8 +26,30 @@ mongoose
     console.error("Error connecting to MongoDB:", error);
   });
 
+// Multer configuration for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "public/uploads/"); // Save uploaded files to the 'public/uploads' directory
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + "-" + file.originalname); // Generate a unique filename
+  },
+});
+
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith("image/")) {
+    cb(null, true); // Accept only image files
+  } else {
+    cb(new Error("Only image files are allowed!"), false);
+  }
+};
+
+const upload = multer({ storage, fileFilter });
+
 app.set("view engine", "ejs");
 
+// Serve static files from the 'public' directory
 app.use(express.static(path.join(path.resolve(), "public")));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -42,17 +65,25 @@ app.use(
 // Routes for Signup, Login, Home, and Dashboard
 app.get("/", (req, res) => res.render("index"));
 
-app.post("/signup", async (req, res) => {
+// Updated Signup Route to Handle Profile Picture Uploads
+app.post("/signup", upload.single("profilePicture"), async (req, res) => {
   const { username, email, password, qualification } = req.body;
+  const profilePicture = req.file ? `/uploads/${req.file.filename}` : null; // Save the file path
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     return res.send("Email already in use!");
   }
 
-  const newUser = new User({ username, email, password, qualification });
-  await newUser.save();
+  const newUser = new User({
+    username,
+    email,
+    password,
+    qualification,
+    profilePicture, // Save the profile picture path in the database
+  });
 
+  await newUser.save();
   res.redirect("/login");
 });
 
@@ -108,7 +139,6 @@ app.get("/chat", async (req, res) => {
 });
 
 // Handle chat messages and skills matching
-// Handle chat messages and skills matching
 app.post("/chat", async (req, res) => {
   if (req.session.user) {
     const { message } = req.body;
@@ -122,24 +152,34 @@ app.post("/chat", async (req, res) => {
     };
 
     const userMessage = message.trim().toLowerCase();
-    let botReply = predefinedReplies[userMessage] || "I'm here to help! Ask me anything.";
+    let botReply =
+      predefinedReplies[userMessage] || "I'm here to help! Ask me anything.";
     let roadmap = null;
     let matched = false;
 
     try {
       // Check if the user message matches skills
-      const userSkills = userMessage.split(",").map((skill) => skill.trim().toLowerCase());
+      const userSkills = userMessage
+        .split(",")
+        .map((skill) => skill.trim().toLowerCase());
 
       for (const skillSet in predefinedSkills) {
-        const normalizedSkills = predefinedSkills[skillSet].skills.map((skill) => skill.toLowerCase());
+        const normalizedSkills = predefinedSkills[skillSet].skills.map(
+          (skill) => skill.toLowerCase()
+        );
 
-        const match = userSkills.some((skill) => normalizedSkills.includes(skill));
+        const match = userSkills.some((skill) =>
+          normalizedSkills.includes(skill)
+        );
 
         if (match) {
           matched = true;
           roadmap = {
             title: `Roadmap for ${skillSet}`,
-            steps: predefinedSkills[skillSet].roadmap.map((step) => ({ step, completed: false })),
+            steps: predefinedSkills[skillSet].roadmap.map((step) => ({
+              step,
+              completed: false,
+            })),
           };
           botReply = `Great! Here's a roadmap for ${skillSet}.`;
           break;
@@ -183,38 +223,6 @@ app.post("/chat", async (req, res) => {
     res.redirect("/login");
   }
 });
-
-
-
-app.post("/update-roadmap", (req, res) => {
-  if (req.session.user) {
-    const { index, completed } = req.body;
-
-    // Logic to update the roadmap in the database
-    // Example:
-    // Assuming req.session.user.roadmap.steps exists and contains steps for this user
-    if (req.session.user.roadmap && req.session.user.roadmap.steps) {
-      req.session.user.roadmap.steps[index].completed = completed;
-
-      // Save the updated user data to the database (if applicable)
-      User.findByIdAndUpdate(req.session.user._id, {
-        roadmap: req.session.user.roadmap,
-      })
-        .then(() => res.status(200).send("Step updated successfully."))
-        .catch((err) => {
-          console.error("Error updating roadmap:", err);
-          res.status(500).send("Failed to update roadmap.");
-        });
-    } else {
-      res.status(400).send("Roadmap not found.");
-    }
-  } else {
-    res.status(403).send("Unauthorized.");
-  }
-});
-
-// Start the server
-
 
 // Start the server
 server.listen(port, () => {

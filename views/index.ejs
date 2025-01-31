@@ -9,7 +9,12 @@
   <body>
     <div class="container">
       <h1>Signup</h1>
-      <form action="/signup" method="POST" id="signup-form">
+      <form
+        action="/signup"
+        method="POST"
+        id="signup-form"
+        enctype="multipart/form-data"
+      >
         <label for="username">Username:</label>
         <input type="text" id="username" name="username" required />
 
@@ -27,6 +32,15 @@
 
         <label for="qualification">Qualification:</label>
         <input type="text" id="qualification" name="qualification" required />
+
+        <label for="profilePicture">Profile Picture:</label>
+        <input
+          type="file"
+          id="profilePicture"
+          name="profilePicture"
+          accept="image/*"
+          required
+        />
 
         <button type="submit">Signup</button>
       </form>
