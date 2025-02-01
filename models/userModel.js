@@ -7,7 +7,10 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   qualification: { type: String, required: true },
-  profilePicture: { type: String }, // Add profile picture field
+  profilePicture: { type: String },
+  skills: { type: String }, // Store user-entered skills
+  abilities: { type: String }, // Store user abilities
+  interests: { type: String }, // Store user interests
 });
 
 // Hash the password before saving the user

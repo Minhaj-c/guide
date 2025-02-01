@@ -66,9 +66,10 @@ app.use(
 app.get("/", (req, res) => res.render("index"));
 
 // Updated Signup Route to Handle Profile Picture Uploads
+// After signup, redirect to skills page
 app.post("/signup", upload.single("profilePicture"), async (req, res) => {
   const { username, email, password, qualification } = req.body;
-  const profilePicture = req.file ? `/uploads/${req.file.filename}` : null; // Save the file path
+  const profilePicture = req.file ? `/uploads/${req.file.filename}` : null;
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
@@ -80,33 +81,64 @@ app.post("/signup", upload.single("profilePicture"), async (req, res) => {
     email,
     password,
     qualification,
-    profilePicture, // Save the profile picture path in the database
+    profilePicture,
   });
 
   await newUser.save();
-  res.redirect("/login");
+  req.session.user = newUser; // Store user session
+  res.redirect("/skills"); // Redirect to skills page
 });
 
-app.get("/login", (req, res) => res.render("login"));
+// Show skills entry page
+app.get("/skills", (req, res) => {
+  if (!req.session.user) {
+    return res.redirect("/login");
+  }
+  res.render("skills");
+});
 
+// Save user skills and redirect to home
+app.post("/save-skills", async (req, res) => {
+  if (!req.session.user) {
+    return res.redirect("/login");
+  }
+
+  const { skills, abilities, interests } = req.body;
+  await User.findByIdAndUpdate(req.session.user._id, { skills, abilities, interests });
+
+  res.redirect("/home"); // Redirect to home page
+});
+
+// After login, check if user has skills data
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
 
   if (user && (await user.comparePassword(password))) {
     req.session.user = user;
-    res.redirect("/home"); // Redirect to home page after login
+    
+    // If user has no skills, redirect to skills page
+    if (!user.skills || !user.abilities || !user.interests) {
+      return res.redirect("/skills");
+    }
+
+    res.redirect("/home");
   } else {
     res.send("Invalid credentials!");
   }
 });
 
+// Route to show the login page
+app.get("/login", (req, res) => {
+  res.render("login"); // This renders the login.ejs page
+});
+
 // Home Page Route
 app.get("/home", (req, res) => {
   if (req.session.user) {
-    res.render("home", { user: req.session.user });
+    res.render("home", { user: req.session.user }); // Render home.ejs with user data
   } else {
-    res.redirect("/login");
+    res.redirect("/login"); // Redirect to login if no session
   }
 });
 
